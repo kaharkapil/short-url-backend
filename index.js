@@ -4,6 +4,9 @@ const mongoose = require('mongoose')
 global.config = require('./config/config')
 
 const bodyParser = require('body-parser')
+const cors = require("cors");
+
+
 const jwt = require('jsonwebtoken')
 
 const URLModel = require("./models/url");
@@ -24,6 +27,18 @@ app.listen(3000, () => {
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    next();
+});
+
+const corsOptions = {
+    origin: '*',
+    credentials: true,
+    optionSuccessStatus: 200,
+}
+
+app.use(cors(corsOptions))
 
 let dbURL = `mongodb://${global.config.database.unm}:${encodeURIComponent(global.config.database.pass)}@${global.config.database.host}:${global.config.database.port}/${global.config.database.name}`;
 
@@ -59,7 +74,9 @@ app.post("/generate", async (req, res) => {
                 if (data) {
                     console.log("decoded data", data);
                     var exp = data.exp * 1000;
-                    return res.status(200).send({ url: 'http://localhost:3000/' + previousURL.shortCode, expiresIn: new Date(exp) });
+                    console.log(new Date(exp));
+                    var seconds =Math.floor(Math.abs(new Date(exp) - new Date())/1000) 
+                    return res.status(200).send({ url: 'http://localhost:3000/' + previousURL.shortCode, expiresIn: seconds + " seconds" });
                 } else {
                     URLModel.deleteOne({ enc_url: encrypted_url }).then(function () {
                         return res.status(200).send({ url: '', expiresIn: "Expired" });
@@ -69,7 +86,7 @@ app.post("/generate", async (req, res) => {
                 }
             })
         } else {
-            let expiryTime = 60
+            let expiryTime = 120;
             let token = jwt.sign(
                 { url: url },
                 global.config.jwt.key,
@@ -85,7 +102,7 @@ app.post("/generate", async (req, res) => {
                 shortCode: randomId,
                 token: token
             });
-            return res.status(200).json({ url: 'http://localhost:3000/' + randomId, expiresIn: expiryTime });
+            return res.status(200).json({ url: 'http://localhost:3000/' + randomId, expiresIn: expiryTime + " seconds" });
         }
 
 
